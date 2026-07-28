@@ -22,6 +22,10 @@ typedef enum {
     TOKEN_STAR,
     TOKEN_SLASH,
 
+    TOKEN_FN,
+    TOKEN_RETURN,
+    TOKEN_COMMA,
+
     TOKEN_PRINT,
     TOKEN_IF,
     TOKEN_ELSE,

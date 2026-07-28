@@ -62,6 +62,10 @@ static Token get_identifier() {
         token.type = TOKEN_CONTINUE; 
     } else if(strcmp(text, "var") == 0) {
         token.type = TOKEN_VAR; 
+    } else if(strcmp(text, "fn") == 0) {
+        token.type = TOKEN_FN; 
+    } else if(strcmp(text, "return") == 0) {
+        token.type = TOKEN_RETURN; 
     } else {
         token.type = TOKEN_IDENTIFIER;
     }
@@ -155,6 +159,7 @@ Token get_token() {
         case '/': token.type = TOKEN_SLASH; break;
         case '(': token.type = TOKEN_LPAREN; break;
         case ')': token.type = TOKEN_RPAREN; break;
+        case ',': token.type = TOKEN_COMMA; break;
         case '=': 
             if(peek() == '=') {
                 advance();

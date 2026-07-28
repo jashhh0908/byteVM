@@ -20,6 +20,8 @@ ASTNode *parse_factor();
 ASTNode *parse_logical_AND();
 ASTNode *parse_logical_OR();
 ASTNode *parse_block();
+ASTNode *parse_func_decl();
+ASTNode *parse_return();
 
 Token current_token;
 static const char *token_name(TokenType type) {
@@ -80,9 +82,29 @@ ASTNode *parse_factor() {
     if(current_token.type == TOKEN_IDENTIFIER) {
         char *name = current_token.lexeme;
         advance();
-        ASTNode *node =  make_identifier(name);
-        free(name); 
-        return node;
+        if(current_token.type == TOKEN_LPAREN) {
+            ASTNode *node = make_call(name);
+            free(name);
+            ASTCall *call = (ASTCall*)node;
+            consume(TOKEN_LPAREN);
+            while(current_token.type != TOKEN_RPAREN) {
+                ASTNode *arg = parse_logical_OR();
+                call->args = realloc(call->args, sizeof(ASTNode*) * (call->argCount + 1));
+                call->args[call->argCount] = arg;
+                call->argCount++;
+                if(current_token.type == TOKEN_COMMA) {
+                    consume(TOKEN_COMMA);
+                } else {
+                    break;
+                }
+            }
+            consume(TOKEN_RPAREN);
+            return node;
+        } else {
+            ASTNode *node =  make_identifier(name);
+            free(name);
+            return node;
+        }
     } else if(current_token.type == TOKEN_NUMBER){
         char *lex = current_token.lexeme;
         int value = convert_lexeme(lex);
@@ -309,6 +331,55 @@ ASTNode *parse_assignment() {
     return node;
 }
 
+ASTNode *parse_func_decl() {
+    consume(TOKEN_FN);
+    char *name = current_token.lexeme;
+    consume(TOKEN_IDENTIFIER);
+    ASTNode *node = make_func(name);
+    free(name);
+    ASTFuncDecl *func = (ASTFuncDecl*)node;
+    consume(TOKEN_LPAREN);
+    if(current_token.type != TOKEN_RPAREN) {
+        while(1) {
+            char *argName = current_token.lexeme; 
+            consume(TOKEN_IDENTIFIER);
+            func->params = realloc(func->params, sizeof(char*) * (func->paramCount + 1));
+            func->params[func->paramCount] = argName;
+            func->paramCount++;
+            if(current_token.type == TOKEN_COMMA) {
+                consume(TOKEN_COMMA);
+            } else {
+                break;
+            }
+        }
+    }
+    consume(TOKEN_RPAREN);
+    consume(TOKEN_LBRACE);
+    while(current_token.type != TOKEN_RBRACE && current_token.type != TOKEN_EOF) {
+        ASTNode* statement = parse_statement();
+        func->statements = realloc(func->statements, sizeof(ASTNode*) * (func->smtCount + 1));
+        func->statements[func->smtCount] = statement;
+        func->smtCount++;
+    }
+    if(current_token.type == TOKEN_EOF) {
+        printf("Syntax Error: Unterminated function");
+        exit(1);
+    }
+    consume(TOKEN_RBRACE);
+    return (ASTNode*)func;
+}
+
+ASTNode *parse_return() {
+    consume(TOKEN_RETURN);
+    ASTNode *exp = NULL;
+    if(current_token.type != TOKEN_SEMICOLON) {
+        exp = parse_logical_OR();
+    }
+    consume(TOKEN_SEMICOLON);
+    ASTNode *node = make_return(exp);
+    return node;
+}
+
 ASTNode *parse_statement() {
     if(current_token.type == TOKEN_PRINT) {
         return parse_print_smt();    
@@ -326,6 +397,10 @@ ASTNode *parse_statement() {
         return parse_continue();
     } else if(current_token.type == TOKEN_VAR) {
         return parse_var_decl();
+    } else if(current_token.type == TOKEN_FN) {
+        return parse_func_decl();
+    } else if(current_token.type == TOKEN_RETURN) {
+        return parse_return();
     } else {
         syntax_error(current_token.type, "statement (print or assignment or if)");
         return NULL;

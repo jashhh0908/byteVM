@@ -33,6 +33,35 @@ ASTNode *make_binaryexp(char op, ASTNode* left, ASTNode *right) {
     return (ASTNode*)node;
 }
 
+ASTNode *make_func(char *name) {
+    ASTFuncDecl *node = malloc(sizeof(ASTFuncDecl));
+    node->type = AST_FUNC_DECL;
+    node->name = malloc(strlen(name) + 1);
+    strcpy(node->name, name);
+    node->params = NULL;
+    node->paramCount = 0;
+    node->statements = NULL;
+    node->smtCount = 0;
+    return (ASTNode*)node;
+}
+
+ASTNode *make_call(char *callee) {
+    ASTCall *node = malloc(sizeof(ASTCall));
+    node->type = AST_CALL;
+    node->callee = malloc(strlen(callee) + 1);
+    strcpy(node->callee, callee);
+    node->args = NULL;
+    node->argCount = 0;
+    return (ASTNode*)node;
+}
+
+ASTNode *make_return(ASTNode *exp) {
+    ASTReturn *node = malloc(sizeof(ASTReturn));
+    node->type = AST_RETURN;
+    node->exp = exp;
+    return (ASTNode*)node;
+}
+
 ASTNode *make_print_smt(ASTNode* exp) {
     ASTPrint* node = malloc(sizeof(ASTPrint));
 
