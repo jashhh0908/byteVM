@@ -1,9 +1,13 @@
 #ifndef VALUE_H
 #define VALUE_H
+
+typedef struct ObjFunction ObjFunction;
+
 typedef enum {
     VALUE_INT,
     VALUE_STRING,
-    VALUE_BOOL
+    VALUE_BOOL,
+    VALUE_FUNC
 } ValueType;
 
 typedef struct {
@@ -12,6 +16,7 @@ typedef struct {
         int val;
         char *str;
         int bool_val;
+        ObjFunction* func;
     };
 } Value;
 

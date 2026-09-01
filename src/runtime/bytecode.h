@@ -29,6 +29,9 @@ typedef enum {
     OP_JUMP,            
     OP_JUMP_IF_FALSE,   
 
+    OP_CALL,
+    OP_RETURN,
+    
     OP_PRINT,
 
     OP_HALT

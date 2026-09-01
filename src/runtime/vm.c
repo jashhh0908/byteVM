@@ -4,9 +4,20 @@
 #include <string.h>
 
 void initVM(VM *vm, Chunk *chunk) {
-    vm->chunk = chunk;
-    vm->ip = chunk->code;
     vm->top = vm->stack;
+    vm->frameCount = 0;
+
+    //wrap the global chunk into a main function with NULL name and 0 args
+    ObjFunction *func = malloc(sizeof(ObjFunction));
+    func->chunk = *chunk;
+    func->argCount = 0;
+    func->name = NULL;
+
+    //push the main func onto the stack as frame 0
+    CallFrame *frame = &vm->frames[vm->frameCount++];
+    frame->func = func;
+    frame->ip = chunk->code;
+    frame->slots = 0;
 }
 
 static void push(VM *vm, Value value) {
@@ -33,12 +44,12 @@ int isTruthy(Value v) {
 }
 void run(VM *vm) {
     while(1) {
-        Instruction instruction = *vm->ip;
-        vm->ip++;
-
+        CallFrame *frame = &vm->frames[vm->frameCount - 1];
+        Instruction instruction = *frame->ip;
+        frame->ip++;
         switch(instruction.opcode) {
             case OP_CONST: {
-                Value v = vm->chunk->constants.values[instruction.operand];
+                Value v = frame->func->chunk.constants.values[instruction.operand];
                 push(vm, v);
                 break;
             }
@@ -54,6 +65,12 @@ void run(VM *vm) {
                 break;
             }
             
+            case OP_STORE_LOCAL: {
+                int slot = instruction.operand;
+                vm->stack[frame->slots + slot] = pop(vm);
+                break;
+            }
+
             case OP_LOAD: {
                 Value v = vm->globals[instruction.operand];
                 push(vm, v);
@@ -62,13 +79,7 @@ void run(VM *vm) {
             
             case OP_LOAD_LOCAL: {
                 int slot = instruction.operand;
-                push(vm, vm->stack[slot]);
-                break;
-            }
-
-            case OP_STORE_LOCAL: {
-                int slot = instruction.operand;
-                vm->stack[slot] = pop(vm);
+                push(vm, vm->stack[frame->slots + slot]);
                 break;
             }
 
@@ -259,15 +270,52 @@ void run(VM *vm) {
             }
 
             case OP_JUMP: {
-                vm->ip += instruction.operand;;
+                frame->ip += instruction.operand;;
                 break;
             }
             
             case OP_JUMP_IF_FALSE: {
                 Value cond = pop(vm);
                 if(!isTruthy(cond)) {
-                    vm->ip += instruction.operand;
+                    frame->ip += instruction.operand;
                 }
+                break;
+            }
+
+            case OP_CALL: {
+                int argCount = instruction.operand;
+                Value callee = *(vm->top - argCount - 1);
+                if(callee.type != VALUE_FUNC) {
+                    printf("Runtime Error: Can only call functions");
+                    exit(1);
+                }
+                ObjFunction *func = callee.func;
+                if(func->argCount != argCount) {
+                    printf("Runtime Error: Expected %d args, got %d args", func->argCount, argCount);
+                    exit(1);
+                }
+                if(vm->frameCount >= FRAMES_MAX) {
+                    printf("Runtime Error: Stack overflow");
+                    exit(1);
+                }
+                CallFrame *newFrame = &vm->frames[vm->frameCount++];
+                newFrame->func = func;
+                newFrame->ip = func->chunk.code;
+                newFrame->slots = (vm->top - vm->stack) - argCount - 1;
+                break;
+            }
+
+            case OP_RETURN: {
+                Value result = pop(vm);
+                CallFrame *returningFrame = &vm->frames[vm->frameCount - 1];
+                vm->frameCount--;
+
+                //returning from main
+                if(vm->frameCount == 0) {
+                    return;
+                }
+                vm->top = vm->stack + returningFrame->slots;
+                push(vm, result);
                 break;
             }
 
@@ -284,7 +332,10 @@ void run(VM *vm) {
                 break;
             }
 
-            case OP_HALT: return;
+            case OP_HALT: {
+                free(vm->frames[0].func);
+                return;
+            }
             default:
                 printf("Unknown opcode encountered.\n");
                 return;
