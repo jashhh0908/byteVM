@@ -324,6 +324,96 @@ void compileNode(ASTNode *node, Chunk *chunk, CompileState *compiler ) {
         break;
     }
     
+    case AST_FUNC_DECL: {
+        ASTFuncDecl *func = (ASTFuncDecl*)node;
+        
+        ObjFunction *objFunc = malloc(sizeof(ObjFunction));
+        objFunc->name = malloc(strlen(func->name) + 1);
+        strcpy(objFunc->name, func->name);
+        objFunc->argCount = func->paramCount;
+        initChunk(&objFunc->chunk);
+
+        int parentLocalSlot = compiler->nextLocalSlot;
+        LoopState *parentLoop = compiler->currentLoop;
+        
+        compiler->nextLocalSlot = 1; 
+        compiler->currentLoop = NULL; 
+
+        SymbolTable *globalScope = compiler->currentScope;
+        while (globalScope != NULL && globalScope->depth > 0) {
+            globalScope = globalScope->parent;
+        }
+
+        int globalSlot = compiler->globalCount++;
+        symbolTable_add(globalScope, func->name, SYMBOL_GLOBAL, globalSlot);
+
+        SymbolTable *funcScope = symbolTable_create(globalScope, 1);
+        SymbolTable *parentScope = compiler->currentScope;
+        compiler->currentScope = funcScope;
+
+        for (int i = 0; i < func->paramCount; i++) {
+            int slot = compiler->nextLocalSlot++;
+            symbolTable_add(funcScope, func->params[i], SYMBOL_LOCAL, slot);
+        }
+
+        for (int i = 0; i < func->smtCount; i++) {
+            compileNode(func->statements[i], &objFunc->chunk, compiler);
+        }
+
+        int retIdx = addConstant(value_int(0), &objFunc->chunk);
+        emitInstruction(&objFunc->chunk, OP_CONST, retIdx);
+        emitInstruction(&objFunc->chunk, OP_RETURN, 0);
+
+        compiler->currentScope = parentScope;
+        compiler->nextLocalSlot = parentLocalSlot;
+        compiler->currentLoop = parentLoop;
+        symbolTable_free(funcScope);
+
+        Value val;
+        val.type = VALUE_FUNC;
+        val.func = objFunc;
+        int constIdx = addConstant(val, chunk);
+        
+        emitInstruction(chunk, OP_CONST, constIdx);
+        emitInstruction(chunk, OP_STORE, globalSlot);
+        break;
+    }
+
+    case AST_CALL: {
+        ASTCall *call = (ASTCall*)node;
+        
+        Symbol *symbol = symbolTable_find(compiler->currentScope, call->callee);
+        if (symbol == NULL) {
+            printf("Error: Undefined function '%s'\n", call->callee);
+            exit(1);
+        }
+        
+        if (symbol->type == SYMBOL_GLOBAL) {
+            emitInstruction(chunk, OP_LOAD, symbol->slot);
+        } else if (symbol->type == SYMBOL_LOCAL) {
+            emitInstruction(chunk, OP_LOAD_LOCAL, symbol->slot);
+        }
+
+        for (int i = 0; i < call->argCount; i++) {
+            compileNode(call->args[i], chunk, compiler);
+        }
+        
+        emitInstruction(chunk, OP_CALL, call->argCount);
+        break;
+    }
+
+    case AST_RETURN: {
+        ASTReturn *ret = (ASTReturn*)node;
+        if (ret->exp != NULL) {
+            compileNode(ret->exp, chunk, compiler);
+        } else {
+            int index = addConstant(value_int(0), chunk);
+            emitInstruction(chunk, OP_CONST, index);
+        }
+        emitInstruction(chunk, OP_RETURN, 0);
+        break;
+    }
+
     case AST_PROGRAM: {
         ASTProgram *root = (ASTProgram*)node;
         for(int i = 0; i < root->smt_count; i++) {
