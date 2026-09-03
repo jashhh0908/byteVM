@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(CompilerC C)
+project(ByteVM C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -25,7 +25,7 @@ set(SOURCES
 )
 
 # Add the executable target
-add_executable(compiler-c ${SOURCES})
+add_executable(byteVM ${SOURCES})
 
 # Include headers from the current directory
-target_include_directories(compiler-c PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(byteVM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

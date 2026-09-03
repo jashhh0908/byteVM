@@ -1,6 +1,6 @@
-# compiler-c
+# byteVM
 
-`compiler-c` is a compiled programming language implementation written in C11.
+`byteVM` is a compiled programming language implementation written in C11.
 
 The project features a **hybrid architecture with a bytecode compiler and a call-stack based Virtual Machine (VM)**, closely resembling real-world language runtimes like CPython, Lua, and the JVM.
 
@@ -126,8 +126,8 @@ boolean        = "true" | "false" ;
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/jashhh0908/compiler-c.git
-   cd compiler-c
+   git clone https://github.com/jashhh0908/byteVM.git
+   cd byteVM
    ```
 
 2. Build using CMake:
@@ -142,10 +142,10 @@ Run any script by passing the source file path to the executable:
 
 **Windows (PowerShell / Command Prompt):**
 ```powershell
-.\build\compiler-c.exe tests/recursion_test.txt
+.\build\byteVM.exe tests/recursion_test.txt
 ```
 
 **Linux / macOS:**
 ```bash
-./build/compiler-c tests/recursion_test.txt
+./build/byteVM tests/recursion_test.txt
 ```
